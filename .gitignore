@@ -1,0 +1,4 @@
+node_modules
+poetry.lock
+private_keys.json
+.env

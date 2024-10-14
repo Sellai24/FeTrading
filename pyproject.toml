@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "tradingbotfetchai"
+version = "0.1.0"
+description = ""
+authors = ["TomasOyh <71292726+TomasOyh@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+uagents = "^0.16.1"
+web3 = "^6.0.0"  # Add this line to include web3
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
