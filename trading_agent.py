@@ -1,3 +1,6 @@
+##The idea of this code is to use a trained model to receive money from users/other agents
+#and then make trades based on the information of a ia trained model
+
 import asyncio
 import logging
 from uagents import Agent, Context, Model
@@ -75,7 +78,7 @@ def verify_request(msg: UserRequest) -> bool:
                 payload["action"] == msg.action and 
                 payload["amount"] == msg.amount and 
                 payload["timestamp"] == msg.timestamp and 
-                time.time() - msg.timestamp < 300)  # 5 minutes expiration
+                time.time() - msg.timestamp < 300)  
     except jwt.InvalidTokenError:
         logger.warning(f"Invalid token received for user {msg.user_address}")
         return False
@@ -89,7 +92,7 @@ async def check_trading_signals(ctx: Context):
     """Periodically check for trading signals."""
     logger.info("Checking trading signals...")
     # For privacy and security reasons, we will not disclose the specific details of our trading bot
-    # Our system uses advanced AI trained on historical cryptocurrency and traditional finance data
+    # Our system uses advanced AI trained on historical cryptocurrency from 2009 to the present and traditional finance data
     # from 1980 to the present, including:
     # - Price and volume patterns across multiple timeframes
     # - On-chain indicators such as exchange flows, whale activity, and network metrics
@@ -104,8 +107,8 @@ async def check_trading_signals(ctx: Context):
     # - Evaluation of technical and fundamental signals
     # - Monitoring of on-chain events such as forks, halving, or regulatory changes
 
-    #For now the bot only uses ETH and BTC as a portfolio
-
+    #For now the bot only trade SOL/BTC, SOL/USD and SOL/FET pairs
+    
 @trading_agent.on_message(model=UserRequest)
 async def handle_request(ctx: Context, sender: str, msg: UserRequest):
     """Handle incoming user requests."""

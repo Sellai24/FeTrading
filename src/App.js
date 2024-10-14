@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
+import * as anchor from '@project-serum/anchor';
+import idl from './/programs/trading_bot/src/tradingBot.idl'; 
 import './App.css';
 
 const SOLANA_NETWORK = 'devnet';
 const connection = new Connection(`https://api.${SOLANA_NETWORK}.solana.com`);
+const PROGRAM_ID = new PublicKey('Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS'); 
 
 function App() {
   const [wallet, setWallet] = useState(null);
   const [balance, setBalance] = useState(0);
   const [depositAmount, setDepositAmount] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -24,6 +26,25 @@ function App() {
     };
     onLoad();
   }, []);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (wallet) {
+        try {
+          const balance = await connection.getBalance(wallet.publicKey);
+          setBalance(balance / LAMPORTS_PER_SOL);
+        } catch (err) {
+          console.error('Error fetching balance:', err);
+          showError('Failed to fetch balance. Please try again.');
+        }
+      }
+    };
+
+    fetchBalance();
+    const intervalId = setInterval(fetchBalance, 10000); // Update balance every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [wallet]);
 
   const showError = (message) => {
     setError(message);
@@ -39,7 +60,6 @@ function App() {
           const phantomWallet = new PhantomWalletAdapter();
           await phantomWallet.connect();
           setWallet(phantomWallet);
-          updateBalance(phantomWallet.publicKey);
         } catch (error) {
           if (error.name === 'WalletNotReadyError') {
             showError('Please make sure the Phantom wallet extension is installed and unlocked.');
@@ -55,48 +75,64 @@ function App() {
     }
   };
 
-  const updateBalance = async (publicKey) => {
-    if (connection && publicKey) {
-      try {
-        const balance = await connection.getBalance(publicKey);
-        setBalance(balance / LAMPORTS_PER_SOL);
-      } catch (error) {
-        showError('Failed to fetch balance. Please try again.');
-      }
-    }
-  };
-
   const sendFundsToAgent = async () => {
     if (!wallet || !connection) return;
     setLoading(true);
-    const amount = parseFloat(depositAmount) * LAMPORTS_PER_SOL;
+    const amount = parseFloat(depositAmount);
     try {
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: new PublicKey('AGENT_PUBLIC_KEY_HERE'), // Replace with actual agent public key
-          lamports: amount,
-        })
+      const provider = new anchor.AnchorProvider(connection, wallet, { preflightCommitment: 'processed' });
+      const program = new anchor.Program(idl, PROGRAM_ID, provider);
+
+      const [vaultPDA] = await PublicKey.findProgramAddress(
+        [Buffer.from("vault")],
+        program.programId
       );
-      const signature = await wallet.sendTransaction(transaction, connection);
-      await connection.confirmTransaction(signature, 'confirmed');
-      alert('Funds sent to agent successfully!');
-      updateBalance(wallet.publicKey);
+
+      const tx = await program.rpc.deposit(new anchor.BN(amount * LAMPORTS_PER_SOL), {
+        accounts: {
+          user: wallet.publicKey,
+          vault: vaultPDA,
+          systemProgram: SystemProgram.programId,
+        },
+      });
+
+      await connection.confirmTransaction(tx, 'processed');
+      const newBalance = await connection.getBalance(wallet.publicKey);
+      setBalance(newBalance / LAMPORTS_PER_SOL);
+      alert(`${amount} SOL transferidos correctamente al agente.`);
       setDepositAmount('');
     } catch (error) {
-      alert(`${amount / LAMPORTS_PER_SOL} SOL transferidos correctamente al agente.`);
+      console.error('Error:', error);
+      showError('Failed to send funds. Please try again.');
     }
     setLoading(false);
   };
 
-  const withdrawFunds = async () => {
+  const withdrawAllFunds = async () => {
     setLoading(true);
     try {
-      // In a real application, you would interact with your Solana program here
-      // to withdraw funds from the trading bot
-      showError('Withdrawal functionality not implemented yet.');
-      setWithdrawAmount('');
+      const provider = new anchor.AnchorProvider(connection, wallet, { preflightCommitment: 'processed' });
+      const program = new anchor.Program(idl, PROGRAM_ID, provider);
+
+      const [vaultPDA] = await PublicKey.findProgramAddress(
+        [Buffer.from("vault")],
+        program.programId
+      );
+
+      const tx = await program.rpc.withdraw({
+        accounts: {
+          user: wallet.publicKey,
+          vault: vaultPDA,
+          systemProgram: SystemProgram.programId,
+        },
+      });
+
+      await connection.confirmTransaction(tx, 'processed');
+      const newBalance = await connection.getBalance(wallet.publicKey);
+      setBalance(newBalance / LAMPORTS_PER_SOL);
+      alert(`Fondos retirados correctamente.`);
     } catch (error) {
+      console.error('Error:', error);
       showError('Failed to withdraw funds. Please try again.');
     }
     setLoading(false);
@@ -112,34 +148,30 @@ function App() {
           <button className="connect-button" onClick={connectWallet}>Connect Wallet</button>
         ) : (
           <div className="dashboard">
-            <div className="account-info">
-              <h2>Account Information</h2>
-              <p>Connected Account: {wallet.publicKey.toString()}</p>
-              <p>Balance: {balance} SOL</p>
-            </div>
-            <div className="actions">
-              <h2>Actions</h2>
-              <div className="action-group">
-                <input
-                  type="number"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  placeholder="Enter amount to deposit"
-                />
-                <button onClick={sendFundsToAgent} disabled={loading}>
-                  Send Funds to Agent
-                </button>
+            <div className="dashboard-content">
+              <div className="account-info">
+                <h2>Account Information</h2>
+                <p><strong>Connected Account:</strong> <br/>{wallet.publicKey.toString()}</p>
+                <p><strong>Balance:</strong> {balance.toFixed(4)} SOL</p>
               </div>
-              <div className="action-group">
-                <input
-                  type="number"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Enter amount to withdraw"
-                />
-                <button onClick={withdrawFunds} disabled={loading}>
-                  Withdraw Funds
-                </button>
+              <div className="actions">
+                <h2>Actions</h2>
+                <div className="action-group">
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="Enter amount to deposit"
+                  />
+                  <button onClick={sendFundsToAgent} disabled={loading}>
+                    Send Funds to Agent
+                  </button>
+                </div>
+                <div className="action-group">
+                  <button onClick={withdrawAllFunds} disabled={loading}>
+                    Withdraw All Funds
+                  </button>
+                </div>
               </div>
             </div>
           </div>

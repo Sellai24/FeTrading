@@ -2,3 +2,8 @@ node_modules
 poetry.lock
 private_keys.json
 .env
+*.json
+*.pkl
+*.DS_Store
+*.log
+*.lock
