@@ -16,10 +16,4 @@ This bot integrates advanced machine learning models, leveraging an optimized Li
 - **Blockchain Transparency**: Records all actions on Solana’s blockchain, ensuring transparency and trust in every transaction.
 
 
-## External Resources
 
-This project leverages the power of the Solana blockchain to generate, compile, and deploy smart contracts. We also leverage on the Fetch.ai agent ecosystem. 
-
-## User Conversations Data
-
-We are committed to protecting user data. All information generated in conversations is handled securely and will never be shared.
